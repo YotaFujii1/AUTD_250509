@@ -1,0 +1,10 @@
+lib/
+*.zip
+*.tar.gz
+build/
+bin/
+target/
+VERSION
+.vscode/
+.vs/ 
+.vs/ 
