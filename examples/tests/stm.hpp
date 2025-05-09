@@ -430,8 +430,8 @@ std::vector<std::vector<uint8_t>> loadPhaseDataFromCSV(const std::string& filena
 
 template<typename L>
 inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
-    std::cout << "Which? (1:post_constrained,2:pre_constrained)" << std::endl;
-
+    std::cout << "Which? (1:post_constrained(Naive),2:post-constrained(GS),3:pre_constrained(GS))" << std::endl;
+    
     int idx;
     std::cin >> idx;
 
@@ -444,7 +444,7 @@ inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
     if (idx == 1) {
         const auto silencer = autd3::Silencer{
                                     autd3::FixedUpdateRate{
-                                        .phase = 8
+                                        .phase = 24
                                     }
         };
         autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
@@ -458,7 +458,8 @@ inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
                 theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num) + 2.0f * autd3::pi * static_cast<float>(j) / static_cast<float>(foci_num);
                 foci.push_back(std::make_pair(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp));
             }
-            return autd3::gain::holo::GSPAT(backend, foci);
+            return autd3::gain::holo::Naive(backend, foci);
+            
 
             }));
 
@@ -466,7 +467,32 @@ inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
         autd.send(silencer);
     }
     else if (idx == 2) {
-        auto phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData/phaseData_phase5_delta8.csv");
+        const auto silencer = autd3::Silencer{
+                                    autd3::FixedUpdateRate{
+                                        .phase = 24
+                                    }
+        };
+        autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
+            /*const auto theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num);
+            return autd3::gain::Focus(center + autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), 0));*/
+            auto backend = std::make_shared<autd3::gain::holo::NalgebraBackend>();
+            auto amp = 1e7 * autd3::gain::holo::Pa;
+            std::vector<std::pair<autd3::Vector3, autd3::gain::holo::Amplitude>> foci;
+            for (int j = 0; j < foci_num; j++) {
+                float theta;
+                theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num) + 2.0f * autd3::pi * static_cast<float>(j) / static_cast<float>(foci_num);
+                foci.push_back(std::make_pair(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp));
+            }
+            return autd3::gain::holo::GS(backend, foci);
+
+
+            }));
+
+        autd.send(stm);
+        autd.send(silencer);
+    }
+    else if (idx == 3) {
+        auto phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData/phaseData_phase15_delta24_rad5.csv");
 
         //for (int i = 0; i < 10; i++) {
         //    for (int j = 0; j < 10; j++) {
