@@ -27,16 +27,16 @@ using namespace std::ranges::views;
 
 template <typename L>
 inline void focus_stm(autd3::Controller<L>& autd) {
-    /*auto silencer = autd3::Silencer::disable();*/
-    auto silencer = autd3::Silencer();
+    auto silencer = autd3::Silencer::disable();
     autd.send(silencer);
+
 
     autd3::modulation::Static m;
 
     const autd3::Vector3 center = autd3::Vector3(0, 0, 220);
     constexpr size_t points_num = 200;
     constexpr auto radius = 5.0f;
-    autd3::FociSTM stm(5.0f * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
+    autd3::FociSTM stm(1.0f * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
         const auto theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num);
         autd3::Vector3 p = center + autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), 0);
         return p;
@@ -427,124 +427,188 @@ std::vector<std::vector<uint8_t>> loadPhaseDataFromCSV(const std::string& filena
 
     return phaseData;
 }
+#include <conio.h> // getch を使うため
+#include <iostream>
+#include <limits>
+// 他の必要なヘッダーを含めてください
 
 template<typename L>
 inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
-    std::cout << "Which? (1:post_constrained(Naive),2:post-constrained(GS),3:pre_constrained(GS))" << std::endl;
-    
-    int idx;
-    std::cin >> idx;
-
-    int foci_num = 4;
+    int foci_num;
+    std::cout << "focusNum?" << std::endl;
+    std::cin >> foci_num;
     float frequency = 5;
     int points_num = 50;
     float radius = 10;
     float z = 200;
+    uint8_t silencerStrength = 32;
+    auto phaseData_post = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_points"+std::to_string(foci_num) + "_post.csv");
+    auto phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_points"+std::to_string(foci_num)+".csv");
 
-    if (idx == 1) {
+
+    
+
+
+
+    while (true) {
+        std::cout << "Press key (1:post_constrained(Naive), 2:post_constrained(GS), 3:pre_constrained(GS), 4:one-shot GS, q:quit): ";
+
+        char ch = _getch();  // キー入力を即時取得
+        std::cout << ch << std::endl; // 押されたキーの確認
+
+        if (ch == 'q') break;
+
         const auto silencer = autd3::Silencer{
-                                    autd3::FixedUpdateRate{
-                                        .phase = 24
-                                    }
+                autd3::FixedUpdateRate{.phase = silencerStrength }
         };
-        autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
-            /*const auto theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num);
-            return autd3::gain::Focus(center + autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), 0));*/
-            auto backend = std::make_shared<autd3::gain::holo::NalgebraBackend>();
-            auto amp = 1e7 * autd3::gain::holo::Pa;
-            std::vector<std::pair<autd3::Vector3, autd3::gain::holo::Amplitude>> foci;
-            for (int j = 0; j < foci_num; j++) {
-                float theta;
-                theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num) + 2.0f * autd3::pi * static_cast<float>(j) / static_cast<float>(foci_num);
-                foci.push_back(std::make_pair(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp));
-            }
-            return autd3::gain::holo::Naive(backend, foci);
+
+        
+        
+
+
+        if (ch == '1') {
             
 
-            }));
+            autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
+                auto backend = std::make_shared<autd3::gain::holo::NalgebraBackend>();
+                auto amp = 1e7 * autd3::gain::holo::Pa;
+                std::vector<std::pair<autd3::Vector3, autd3::gain::holo::Amplitude>> foci;
+                for (int j = 0; j < foci_num; j++) {
+                    float theta = 2.0f * autd3::pi * static_cast<float>(i) / points_num + 2.0f * autd3::pi * j / foci_num;
+                    foci.emplace_back(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp);
+                }
+                return autd3::gain::holo::Naive(backend, foci);
+                }));
 
-        autd.send(stm);
-        autd.send(silencer);
-    }
-    else if (idx == 2) {
-        const auto silencer = autd3::Silencer{
-                                    autd3::FixedUpdateRate{
-                                        .phase = 24
-                                    }
-        };
-        autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
-            /*const auto theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num);
-            return autd3::gain::Focus(center + autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), 0));*/
+            autd.send(stm);
+            autd.send(silencer);
+            
+        }
+        else if (ch == '5') {
+            autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
+                auto backend = std::make_shared<autd3::gain::holo::NalgebraBackend>();
+                auto amp = 1e7 * autd3::gain::holo::Pa;
+                std::vector<std::pair<autd3::Vector3, autd3::gain::holo::Amplitude>> foci;
+                for (int j = 0; j < foci_num; j++) {
+                    float theta = 2.0f * autd3::pi * static_cast<float>(i) / points_num + 2.0f * autd3::pi * j / foci_num;
+                    foci.emplace_back(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp);
+                }
+                return autd3::gain::holo::GS(backend, foci);
+                }));
+
+            autd.send(stm);
+            autd.send(silencer);
+        }
+
+        else if (ch == '2') {
+            
+
+            autd3::GainSTM stm(1.0f * autd3::Hz, iota(0) | take(phaseData_post.size()) | transform([=](auto i) {
+                const autd3::gain::Custom g([=](const auto& dev) -> auto {
+                    return [&](const auto& tr) -> autd3::Drive {
+                        size_t index = tr.idx() + tr.dev_idx() * 249;
+                        uint8_t intensity = 255;
+                        uint8_t phase = (256 - phaseData_post[i][index]) % 256;
+                        return autd3::Drive(autd3::Phase(phase), autd3::EmitIntensity(intensity));
+                        };
+                    });
+                return g;
+                }));
+
+            autd.send(stm);
+            autd.send(silencer);
+            
+        }
+
+        else if (ch == '3') {
+            
+            
+
+            autd3::GainSTM stm(1.0f * autd3::Hz, iota(0) | take(phaseData.size()) | transform([=](auto i) {
+                const autd3::gain::Custom g([=](const auto& dev) -> auto {
+                    return [&](const auto& tr) -> autd3::Drive {
+                        size_t index = tr.idx() + tr.dev_idx() * 249;
+                        uint8_t intensity = 255;
+                        uint8_t phase = (256 - phaseData[i][index]) % 256;
+                        return autd3::Drive(autd3::Phase(phase), autd3::EmitIntensity(intensity));
+                        };
+                    });
+                return g;
+                }));
+
+            autd.send(stm);
+            autd.send(silencer);
+            
+        }
+
+        else if (ch == '4') {
             auto backend = std::make_shared<autd3::gain::holo::NalgebraBackend>();
             auto amp = 1e7 * autd3::gain::holo::Pa;
             std::vector<std::pair<autd3::Vector3, autd3::gain::holo::Amplitude>> foci;
             for (int j = 0; j < foci_num; j++) {
-                float theta;
-                theta = 2.0f * autd3::pi * static_cast<float>(i) / static_cast<float>(points_num) + 2.0f * autd3::pi * static_cast<float>(j) / static_cast<float>(foci_num);
-                foci.push_back(std::make_pair(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp));
+                float theta = 2.0f * autd3::pi * j / foci_num;
+                foci.emplace_back(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp);
             }
-            return autd3::gain::holo::GS(backend, foci);
 
+            auto gain = autd3::gain::holo::GS(backend, foci);
+            autd.send(gain);
+            autd.send(silencer);
+        }
 
-            }));
-
-        autd.send(stm);
-        autd.send(silencer);
+        
     }
-    else if (idx == 3) {
-        auto phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData/phaseData_phase15_delta24_rad5.csv");
+    
+}
 
-        //for (int i = 0; i < 10; i++) {
-        //    for (int j = 0; j < 10; j++) {
-        //        std::cout << (int)(phaseData[i][j]) << " ";
-        //    }
-        //    std::cout << std::endl;
-        //}
+int ctoi(const char c) {
+    if ('0' <= c && c <= '9') return (c - '0');
+    return -1;
+}
+
+template<typename L>
+inline void stm_silencer_comparison_points(autd3::Controller<L>& autd) {
+
+    float frequency = 5;
+    int points_num = 50;
+    float radius = 10;
+    float z = 200;
+    uint8_t silencerStrength = 32;
+  
 
 
-        autd3::GainSTM stm(1.0f * autd3::Hz, iota(0) | take(points_num * frequency) | transform([=](auto i) {
 
+    while (true) {
+        std::cout << "Press key (1:post_constrained(Naive), 2:post_constrained(GS), 3:pre_constrained(GS), 4:one-shot GS, q:quit): ";
+
+        char ch = _getch();  // キー入力を即時取得
+        std::cout << ch << std::endl; // 押されたキーの確認
+
+        if (ch == 'q') break;
+
+        const auto silencer = autd3::Silencer{
+                autd3::FixedUpdateRate{.phase = silencerStrength }
+        };
+        int foci_num = ctoi(ch);
+
+        auto phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_points" + std::to_string(foci_num) + ".csv");
+        
+        autd3::GainSTM stm(1.0f * autd3::Hz, iota(0) | take(phaseData.size()) | transform([=](auto i) {
             const autd3::gain::Custom g([=](const auto& dev) -> auto {
                 return [&](const auto& tr) -> autd3::Drive {
                     size_t index = tr.idx() + tr.dev_idx() * 249;
-                    //std::cout << (int)index << std::endl;
-
                     uint8_t intensity = 255;
-                    //uint8_t phase = phases[index];
                     uint8_t phase = (256 - phaseData[i][index]) % 256;
-                    //if (i * 10 != index )intensity = 0;
-
                     return autd3::Drive(autd3::Phase(phase), autd3::EmitIntensity(intensity));
                     };
                 });
-
             return g;
             }));
 
         autd.send(stm);
-
-        //const autd3::gain::Custom g([=](const auto& dev) -> auto {
-        //    return [&](const auto& tr) -> autd3::Drive {
-        //        size_t index = tr.idx() + tr.dev_idx() * 249;
-        //        //std::cout << (int)index << std::endl;
-
-        //        uint8_t intensity = 255;
-        //        //uint8_t phase = phases[index];
-        //        uint8_t phase = (-phaseData[0][index] + 256) % 256;
-        //        //if (i * 10 != index )intensity = 0;
-        //        //std::cout << dev.wavenumber() << std::endl;
-
-        //        return autd3::Drive(autd3::Phase(phase), autd3::EmitIntensity(intensity));
-        //        };
-        //    });
-
-        //autd.send(g);
-
+        autd.send(silencer);
 
 
 
     }
 
-
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }

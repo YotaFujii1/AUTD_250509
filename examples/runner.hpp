@@ -28,6 +28,7 @@ inline void run(autd3::Controller<L>& autd) {
         std::pair(F{focus_stm<L>}, "FociSTM test"),       std::pair(F{gain_stm<L>}, "GainSTM test"),
         std::pair(F{gain_stm_241227<L>}, "GainSTM test_241227"),std::pair(F{gain_stm_250106<L>}, "GainSTM test_UpdateRateMode"),
         std::pair(F{holo_test<L>}, "Multiple foci test"), std::pair(F{stm_silencer_comparison<L>},"GSTest250509"),
+        std::pair(F{stm_silencer_comparison_points<L>},"GSTest_points"),
         std::pair(F{flag_test<L>}, "Flag test"),
         std::pair(F{custom<L>}, "Custom Gain test"),      std::pair(F{group_by_transducer_test<L>}, "Group (by Transducer) test") };
 
