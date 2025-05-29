@@ -447,23 +447,6 @@ inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
     auto phaseData_naive = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_points" + std::to_string(foci_num) + "_naive.csv");
     //phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_point4_filled.csv");
 
-    autd3::GainSTM test(0.25f * autd3::Hz, iota(0) | take(phaseData_naive.size()) | transform([=](auto i) {
-        const autd3::gain::Custom g([=](const auto& dev) -> auto {
-            return [&](const auto& tr) -> autd3::Drive {
-                size_t index = tr.idx() + tr.dev_idx() * 249;
-                uint8_t intensity = 255;
-                uint8_t phase = (256 - phaseData_naive[i][index]) % 256;
-                return autd3::Drive(autd3::Phase(phase), autd3::EmitIntensity(intensity));
-                };
-            });
-        return g;
-        }));
-    auto test2 = autd3::gain::Null();
-    autd3::gain::Cache<autd3::gain::Null> cache_post(test2);
-    
-
-
-
     while (true) {
         std::cout << "Press key (1:post_constrained(Naive), 2:post_constrained(GS), 3:pre_constrained(GS), 4:one-shot GS, q:quit): ";
 
