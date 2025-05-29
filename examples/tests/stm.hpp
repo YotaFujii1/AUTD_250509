@@ -444,8 +444,22 @@ inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
     uint8_t silencerStrength = 32;
     auto phaseData_post = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_points"+std::to_string(foci_num) + "_post.csv");
     auto phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_points"+std::to_string(foci_num)+".csv");
+    auto phaseData_naive = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_points" + std::to_string(foci_num) + "_naive.csv");
+    //phaseData = loadPhaseDataFromCSV("C:/Users/shinolab/FujiiYota/autd3-cpp-main/examples/tests/phaseData_points/phaseData_phase20_delta32_point4_filled.csv");
 
-
+    autd3::GainSTM test(0.25f * autd3::Hz, iota(0) | take(phaseData_naive.size()) | transform([=](auto i) {
+        const autd3::gain::Custom g([=](const auto& dev) -> auto {
+            return [&](const auto& tr) -> autd3::Drive {
+                size_t index = tr.idx() + tr.dev_idx() * 249;
+                uint8_t intensity = 255;
+                uint8_t phase = (256 - phaseData_naive[i][index]) % 256;
+                return autd3::Drive(autd3::Phase(phase), autd3::EmitIntensity(intensity));
+                };
+            });
+        return g;
+        }));
+    auto test2 = autd3::gain::Null();
+    autd3::gain::Cache<autd3::gain::Null> cache_post(test2);
     
 
 
@@ -458,52 +472,44 @@ inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
 
         if (ch == 'q') break;
 
-        const auto silencer = autd3::Silencer{
+        //const auto silencer2 = autd3::Silencer::disable();
+        //
+        //autd.send(silencer2);
+        /*const auto silencer = autd3::Silencer{
                 autd3::FixedUpdateRate{.phase = silencerStrength }
+        };*/
+        const auto silencer = autd3::Silencer{
+                autd3::FixedCompletionTime{
+                .intensity = std::chrono::microseconds(1000),
+                .phase = std::chrono::microseconds(4000)
+        }
         };
+        autd.send(silencer);
 
         
+
         
 
 
         if (ch == '1') {
-            
-
-            autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
-                auto backend = std::make_shared<autd3::gain::holo::NalgebraBackend>();
-                auto amp = 1e7 * autd3::gain::holo::Pa;
-                std::vector<std::pair<autd3::Vector3, autd3::gain::holo::Amplitude>> foci;
-                for (int j = 0; j < foci_num; j++) {
-                    float theta = 2.0f * autd3::pi * static_cast<float>(i) / points_num + 2.0f * autd3::pi * j / foci_num;
-                    foci.emplace_back(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp);
-                }
-                return autd3::gain::holo::Naive(backend, foci);
+            autd3::GainSTM stm(0.25f * autd3::Hz, iota(0) | take(phaseData_naive.size()) | transform([=](auto i) {
+                const autd3::gain::Custom g([=](const auto& dev) -> auto {
+                    return [&](const auto& tr) -> autd3::Drive {
+                        size_t index = tr.idx() + tr.dev_idx() * 249;
+                        uint8_t intensity = 255;
+                        uint8_t phase = (256 - phaseData_naive[i][index]) % 256;
+                        return autd3::Drive(autd3::Phase(phase), autd3::EmitIntensity(intensity));
+                        };
+                    });
+                return g;
                 }));
 
             autd.send(stm);
             autd.send(silencer);
             
         }
-        else if (ch == '5') {
-            autd3::GainSTM stm(frequency * autd3::Hz, iota(0) | take(points_num) | transform([&](auto i) {
-                auto backend = std::make_shared<autd3::gain::holo::NalgebraBackend>();
-                auto amp = 1e7 * autd3::gain::holo::Pa;
-                std::vector<std::pair<autd3::Vector3, autd3::gain::holo::Amplitude>> foci;
-                for (int j = 0; j < foci_num; j++) {
-                    float theta = 2.0f * autd3::pi * static_cast<float>(i) / points_num + 2.0f * autd3::pi * j / foci_num;
-                    foci.emplace_back(autd3::Vector3(radius * std::cos(theta), radius * std::sin(theta), z), amp);
-                }
-                return autd3::gain::holo::GS(backend, foci);
-                }));
-
-            autd.send(stm);
-            autd.send(silencer);
-        }
-
         else if (ch == '2') {
-            
-
-            autd3::GainSTM stm(1.0f * autd3::Hz, iota(0) | take(phaseData_post.size()) | transform([=](auto i) {
+            autd3::GainSTM stm(0.25f * autd3::Hz, iota(0) | take(phaseData_post.size()) | transform([=](auto i) {
                 const autd3::gain::Custom g([=](const auto& dev) -> auto {
                     return [&](const auto& tr) -> autd3::Drive {
                         size_t index = tr.idx() + tr.dev_idx() * 249;
@@ -524,7 +530,7 @@ inline void stm_silencer_comparison(autd3::Controller<L>& autd) {
             
             
 
-            autd3::GainSTM stm(1.0f * autd3::Hz, iota(0) | take(phaseData.size()) | transform([=](auto i) {
+            autd3::GainSTM stm(0.25f * autd3::Hz, iota(0) | take(phaseData.size()) | transform([=](auto i) {
                 const autd3::gain::Custom g([=](const auto& dev) -> auto {
                     return [&](const auto& tr) -> autd3::Drive {
                         size_t index = tr.idx() + tr.dev_idx() * 249;
